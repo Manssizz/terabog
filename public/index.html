@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Terabox Downloader & Streamer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📦 Terabox Downloader & Streamer</h1>
+            <p>Stream atau download file dari Terabox dengan mudah</p>
+        </header>
+
+        <div class="input-section">
+            <div class="input-group">
+                <input 
+                    type="text" 
+                    id="teraboxUrl" 
+                    placeholder="Masukkan URL Terabox (contoh: https://www.terabox.com/s/...)" 
+                    autocomplete="off"
+                >
+                <button id="fetchBtn" class="btn btn-primary">
+                    <span class="btn-text">Cari File</span>
+                    <span class="btn-loader" style="display: none;">⏳</span>
+                </button>
+            </div>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Memproses URL...</p>
+        </div>
+
+        <div id="error" class="error" style="display: none;"></div>
+
+        <div id="results" class="results" style="display: none;">
+            <h2>File Ditemukan</h2>
+            <div id="fileList" class="file-list"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
+
