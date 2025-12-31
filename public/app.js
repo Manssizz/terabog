@@ -1,9 +1,51 @@
-const teraboxUrlInput = document.getElementById('teraboxUrl');
-const fetchBtn = document.getElementById('fetchBtn');
-const loading = document.getElementById('loading');
-const error = document.getElementById('error');
-const results = document.getElementById('results');
-const fileList = document.getElementById('fileList');
+// Wait for DOM to be ready
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM loaded, initializing...');
+    initializeApp();
+});
+
+function initializeApp() {
+    const teraboxUrlInput = document.getElementById('teraboxUrl');
+    const fetchBtn = document.getElementById('fetchBtn');
+    const loading = document.getElementById('loading');
+    const error = document.getElementById('error');
+    const results = document.getElementById('results');
+    const fileList = document.getElementById('fileList');
+
+    if (!teraboxUrlInput || !fetchBtn) {
+        console.error('Form elements not found!');
+        return;
+    }
+
+    console.log('Form elements found, setting up event listeners...');
+    
+    // Make functions available globally
+    window.teraboxUrlInput = teraboxUrlInput;
+    window.fetchBtn = fetchBtn;
+    window.loading = loading;
+    window.error = error;
+    window.results = results;
+    window.fileList = fileList;
+    
+    // Set up event listeners
+    setupEventListeners();
+}
+
+function setupEventListeners() {
+    const teraboxUrlInput = window.teraboxUrlInput;
+    const fetchBtn = window.fetchBtn;
+
+    // Event listeners
+    fetchBtn.addEventListener('click', fetchFiles);
+
+    teraboxUrlInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            fetchFiles();
+        }
+    });
+
+    console.log('Event listeners set up successfully');
+}
 
 // Format file size
 function formatFileSize(bytes) {
@@ -57,19 +99,40 @@ function isVideo(filename) {
 
 // Hide error message
 function hideError() {
-    error.style.display = 'none';
-    error.textContent = '';
+    const errorEl = window?.error || document.getElementById('error');
+    if (errorEl) {
+        errorEl.style.display = 'none';
+        errorEl.textContent = '';
+    }
 }
 
 // Show error message
 function showError(message) {
-    error.textContent = message;
-    error.style.display = 'block';
+    const errorEl = window?.error || document.getElementById('error');
+    if (errorEl) {
+        errorEl.textContent = message;
+        errorEl.style.display = 'block';
+    } else {
+        console.error('Error element not found:', message);
+        alert(message);
+    }
 }
 
 // Fetch files from Terabox URL
 async function fetchFiles() {
-    const url = teraboxUrlInput.value.trim();
+    const input = window?.teraboxUrlInput || document.getElementById('teraboxUrl');
+    const btn = window?.fetchBtn || document.getElementById('fetchBtn');
+    const loadingEl = window?.loading || document.getElementById('loading');
+    const errorEl = window?.error || document.getElementById('error');
+    const resultsEl = window?.results || document.getElementById('results');
+    const fileListEl = window?.fileList || document.getElementById('fileList');
+    
+    if (!input) {
+        console.error('Input element not found!');
+        return;
+    }
+    
+    const url = input.value.trim();
     
     if (!url) {
         showError('Silakan masukkan URL Terabox');
@@ -83,23 +146,45 @@ async function fetchFiles() {
     }
 
     // Reset UI
-    hideError();
-    results.style.display = 'none';
-    loading.style.display = 'block';
-    fetchBtn.disabled = true;
-    fetchBtn.querySelector('.btn-text').textContent = 'Memproses...';
-    fetchBtn.querySelector('.btn-loader').style.display = 'inline';
+    if (errorEl) hideError();
+    if (resultsEl) resultsEl.style.display = 'none';
+    if (loadingEl) loadingEl.style.display = 'block';
+    if (btn) {
+        btn.disabled = true;
+        const btnText = btn.querySelector('.btn-text');
+        const btnLoader = btn.querySelector('.btn-loader');
+        if (btnText) btnText.textContent = 'Memproses...';
+        if (btnLoader) btnLoader.style.display = 'inline';
+    }
 
     try {
-        const response = await fetch('/api/download', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ url })
-        });
-
-        const data = await response.json();
+        // Check if we're on GitHub Pages (no backend) or local server
+        let data;
+        
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // Use backend API if available
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ url })
+                });
+                data = await response.json();
+            } catch (e) {
+                // Fallback to browser version
+                const api = new window.TeraDownloaderBrowser();
+                data = await api.download({ url });
+            }
+        } else {
+            // Use browser-compatible version for GitHub Pages
+            if (!window.TeraDownloaderBrowser) {
+                throw new Error('TeraDownloaderBrowser tidak tersedia. Pastikan v18-browser.js dimuat.');
+            }
+            const api = new window.TeraDownloaderBrowser();
+            data = await api.download({ url });
+        }
 
         if (data.success && data.list && data.list.length > 0) {
             displayFiles(data.list);
@@ -110,16 +195,28 @@ async function fetchFiles() {
         console.error('Error:', err);
         showError('Terjadi kesalahan: ' + err.message);
     } finally {
-        loading.style.display = 'none';
-        fetchBtn.disabled = false;
-        fetchBtn.querySelector('.btn-text').textContent = 'Cari File';
-        fetchBtn.querySelector('.btn-loader').style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'none';
+        if (btn) {
+            btn.disabled = false;
+            const btnText = btn.querySelector('.btn-text');
+            const btnLoader = btn.querySelector('.btn-loader');
+            if (btnText) btnText.textContent = 'Cari File';
+            if (btnLoader) btnLoader.style.display = 'none';
+        }
     }
 }
 
 // Display files in the UI
 function displayFiles(files) {
-    fileList.innerHTML = '';
+    const fileListEl = window?.fileList || document.getElementById('fileList');
+    const resultsEl = window?.results || document.getElementById('results');
+    
+    if (!fileListEl) {
+        console.error('File list element not found!');
+        return;
+    }
+    
+    fileListEl.innerHTML = '';
     
     files.forEach((file, index) => {
         const fileItem = document.createElement('div');
@@ -157,23 +254,28 @@ function displayFiles(files) {
             ${isVideoFile ? `
                 <div id="player-${index}" class="video-player" style="display: none;">
                     <video controls>
-                        <source src="/api/stream?url=${encodeURIComponent(fileUrl)}" type="video/mp4">
+                        <source src="${fileUrl}" type="video/mp4">
                         Browser Anda tidak mendukung video player.
                     </video>
                 </div>
             ` : ''}
         `;
         
-        fileList.appendChild(fileItem);
+        fileListEl.appendChild(fileItem);
     });
     
-    results.style.display = 'block';
+    if (resultsEl) resultsEl.style.display = 'block';
 }
 
 // Stream video file
 function streamFile(url, filename) {
+    const fileListEl = window?.fileList || document.getElementById('fileList');
+    const resultsEl = window?.results || document.getElementById('results');
+    
+    if (!fileListEl) return;
+    
     // Find the player element for this file
-    const fileItems = fileList.querySelectorAll('.file-item');
+    const fileItems = fileListEl.querySelectorAll('.file-item');
     let playerElement = null;
     
     fileItems.forEach((item, index) => {
@@ -195,10 +297,13 @@ function streamFile(url, filename) {
         }
     });
     
+    // Use direct URL for streaming (works in browser)
+    const videoUrl = url;
+    
     if (playerElement) {
         const video = playerElement.querySelector('video');
         if (video) {
-            video.src = `/api/stream?url=${encodeURIComponent(url)}`;
+            video.src = videoUrl;
             playerElement.style.display = 'block';
             video.load();
             video.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -209,38 +314,33 @@ function streamFile(url, filename) {
         playerDiv.className = 'video-player';
         playerDiv.innerHTML = `
             <video controls autoplay>
-                <source src="/api/stream?url=${encodeURIComponent(url)}" type="video/mp4">
+                <source src="${videoUrl}" type="video/mp4">
                 Browser Anda tidak mendukung video player.
             </video>
         `;
         
         // Insert after results
-        results.appendChild(playerDiv);
-        playerDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        if (resultsEl) {
+            resultsEl.appendChild(playerDiv);
+            playerDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
     }
 }
 
 // Download file
 function downloadFile(url, filename) {
-    const downloadUrl = `/api/download-file?url=${encodeURIComponent(url)}&filename=${encodeURIComponent(filename)}`;
+    // Use direct URL for download (works in browser)
     const a = document.createElement('a');
-    a.href = downloadUrl;
+    a.href = url;
     a.download = filename;
+    a.target = '_blank';
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
 }
 
-// Event listeners
-fetchBtn.addEventListener('click', fetchFiles);
-
-teraboxUrlInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        fetchFiles();
-    }
-});
-
 // Make functions globally available for onclick handlers
 window.streamFile = streamFile;
 window.downloadFile = downloadFile;
+window.fetchFiles = fetchFiles;
 
